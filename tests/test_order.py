@@ -1,60 +1,41 @@
+# tests/test_order.py
+
 import pytest
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
 from pages.main_page import MainPage
 from pages.order_page import OrderPage
-
-@pytest.fixture
-def driver():
-    driver = webdriver.Firefox()
-    yield driver
-    driver.quit()
-
-test_data = [
-    {"name": "Иван", "surname": "Иванов", "address": "ул. Ленина д.1", "phone": "+79991234567"},
-    {"name": "Петр", "surname": "Петров", "address": "проспект Мира д.10", "phone": "+79876543210"}
-]
-
-@pytest.mark.parametrize("order_data", test_data)
-def test_order_flow(driver: webdriver.Firefox, order_data):
-    page = MainPage(driver)
-
-    page.open()
-
-    for entry_point in ["top", "bottom"]:
-        if entry_point == "top":
-            page.click_order_top()
-        else:
-            page.click_order_bottom()
-
-        order_page = OrderPage(driver)
-
-        order_page.fill_form(**order_data)
-
-        order_page.submit_order()
-
-        message = order_page.get_success_message()
-
-        assert "успешно создан" in message.lower(), f"Сообщение: {message}"
+from data.test_data import order_test_data
 
 
-        page.click_logo_scooter()
-        assert driver.current_url == MainPage.URL
+@pytest.mark.parametrize("order_data", order_test_data)
+@pytest.mark.parametrize("entry_point", ["top", "bottom"])
+def test_order_flow(driver, order_data, entry_point):
+    main_page = MainPage(driver)
+    order_page = OrderPage(driver)
 
+    main_page.open()
 
-        main_window_handle = driver.current_window_handle
+    if entry_point == "top":
+        main_page.click_order_top()
+    else:
+        main_page.click_order_bottom()
 
-        page.click_logo_yandex()
+    order_page.fill_form(**order_data)
+    order_page.submit_order()
 
-        WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > 1)
+    message = order_page.get_success_message()
+    assert "успешно создан" in message.lower(), f"Сообщение: {message}"
 
-        new_window_handle = [h for h in driver.window_handles if h != main_window_handle][0]
+    main_page.click_logo_scooter()
+    assert driver.current_url == "https://qa-scooter.praktikum-services.ru/ "
 
-        driver.switch_to.window(new_window_handle)
+    main_window_handle = driver.current_window_handle
+    main_page.click_logo_yandex()
 
-        assert 'dzen.ru' in driver.current_url or 'zen' in driver.current_url
+    WebDriverWait(driver, 10).until(lambda d: len(d.window_handles) > 1)
+    new_window_handle = [h for h in driver.window_handles if h != main_window_handle][0]
+    driver.switch_to.window(new_window_handle)
 
-        driver.close()
+    assert 'dzen.ru' in driver.current_url or 'zen.yandex' in driver.current_url
 
-        driver.switch_to.window(main_window_handle)
-
+    driver.close()
+    driver.switch_to.window(main_window_handle)
